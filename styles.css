@@ -1,0 +1,73 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #111827;
+    color: #f3f4f6;
+}
+
+.anime-card {
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.anime-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 15px rgba(59, 130, 246, 0.2);
+}
+
+.modal-overlay {
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(5px);
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1f2937;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3b82f6;
+    border-radius: 4px;
+}
+
+.genre-tag:hover {
+    background-color: #3b82f6;
+    color: white;
+}
+
+/* MODAL FIX */
+.modal-content {
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-body {
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* RESPONSIVE FIX */
+@media (max-width: 768px) {
+    #modal .flex {
+        flex-direction: column;
+    }
+
+    #modal img {
+        max-height: 300px;
+        object-fit: cover;
+    }
+
+    .modal-body {
+        max-height: 40vh;
+    }
+}
