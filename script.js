@@ -1,11 +1,12 @@
 // API settings
 const API_URL = "https://graphql.anilist.co";
-const DEFAULT_IMG = "https://via.placeholder.com/300x450/1f2937/9ca3af?text=No+Image";
+const DEFAULT_IMG =
+  "https://via.placeholder.com/300x450/0f172a/64748b?text=No+Image";
 
-// Get all HTML elements we need
-const el = {
+// DOM elements
+const elements = {
   search: document.getElementById("search-input"),
-  btn: document.getElementById("search-btn"), 
+  btn: document.getElementById("search-btn"),
   results: document.getElementById("results"),
   grid: document.getElementById("results-grid"),
   count: document.getElementById("result-count"),
@@ -13,130 +14,193 @@ const el = {
   empty: document.getElementById("empty"),
   modal: document.getElementById("modal"),
   closeModal: document.getElementById("close-modal"),
+  modalImg: document.getElementById("modal-img"),
+  modalTitle: document.getElementById("modal-title"),
+  modalScore: document.getElementById("modal-score"),
+  modalFormat: document.getElementById("modal-format"),
+  modalStatus: document.getElementById("modal-status"),
+  modalGenres: document.getElementById("modal-genres"),
+  modalDesc: document.getElementById("modal-desc"),
 };
 
-// Set up click and keyboard events
-el.btn.addEventListener("click", searchAnime);
-el.search.addEventListener("keypress", (e) => e.key === "Enter" && searchAnime());
-el.closeModal.addEventListener("click", () => el.modal.classList.add("hidden"));
+// Event listeners
+elements.btn.addEventListener("click", searchAnime);
+elements.search.addEventListener("keypress", (e) => {
+  if (e.key === "Enter") searchAnime();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !elements.modal.classList.contains("hidden")) {
+    closeModal();
+  }
+});
 
 // Main search function
 async function searchAnime() {
-  const query = el.search.value.trim();
+  const query = elements.search.value.trim();
   if (!query) return;
-  
-  // Show loading, hide other states
-  el.loading.classList.remove("hidden");
-  el.results.classList.add("hidden");
-  el.empty.classList.add("hidden");
-  
+
+  showLoadingState();
+
   try {
-    // Get anime data from API
     const anime = await fetchAnime(query);
-    
-    // Show results or empty message
     if (anime.length) {
       showResults(anime);
     } else {
-      showEmpty(`No results for "${query}"`);
+      elements.results.classList.add("hidden");
+      showEmptyState(`No results found for "${query}"`);
     }
-  } catch {
-    showEmpty("Error searching. Try again.");
+  } catch (error) {
+    console.error("Search error:", error);
+    elements.results.classList.add("hidden");
+    showEmptyState("An error occurred while searching. Please try again.");
   } finally {
-    el.loading.classList.add("hidden");
+    elements.loading.classList.add("hidden");
   }
 }
 
-// Get anime data from AniList API
+// Show loading state
+function showLoadingState() {
+  elements.loading.classList.remove("hidden");
+  elements.results.classList.add("hidden");
+  elements.empty.classList.add("hidden");
+  elements.grid.innerHTML = Array(10)
+    .fill(
+      '<div class="bg-slate-800 rounded-xl h-72 animate-pulse shadow-md"></div>'
+    )
+    .join("");
+  elements.results.classList.remove("hidden");
+}
+
+// Fetch anime data
 async function fetchAnime(query) {
-  const res = await fetch(API_URL, {
+  const response = await fetch(API_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       query: `query ($search: String) {
-        Page(page: 1, perPage: 24) {
-          media(search: $search, type: ANIME) {
-            id title { romaji english native }
-            coverImage { extraLarge large }
-            averageScore status format genres description
-          }
-        }
-      }`,
+            Page(page: 1, perPage: 24) {
+              media(search: $search, type: ANIME) {
+                id
+                title { romaji english native }
+                coverImage { extraLarge large }
+                averageScore
+                status
+                format
+                genres
+                description(asHtml: false)
+              }
+            }
+          }`,
       variables: { search: query },
     }),
   });
-  const data = await res.json();
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const data = await response.json();
   return data.data.Page.media;
 }
 
-// Display search results
+// Display results
 function showResults(anime) {
-  // Create HTML cards for each anime
-  el.grid.innerHTML = anime.map(createCard).join("");
-  el.count.textContent = `${anime.length} ${anime.length === 1 ? "result" : "results"}`;
-  el.results.classList.remove("hidden");
-  
-  // Add click handler to each card
+  elements.grid.innerHTML = anime
+    .map(
+      (anime) => `
+        <div class="anime-card bg-slate-800 rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-xl">
+          <div class="relative h-72">
+            <img src="${
+              anime.coverImage?.extraLarge ||
+              anime.coverImage?.large ||
+              DEFAULT_IMG
+            }" 
+                 alt="${
+                   anime.title.english || anime.title.romaji || "Untitled Anime"
+                 }" 
+                 class="w-full h-full object-cover transition-opacity duration-300"
+                 loading="lazy">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+            <div class="absolute bottom-0 left-0 p-4 w-full">
+              <h3 class="text-white font-semibold text-base line-clamp-2">${
+                anime.title.english || anime.title.romaji || "Untitled"
+              }</h3>
+              <div class="flex items-center mt-3 gap-2">
+                <span class="bg-indigo-600 text-white text-sm px-3 py-1 rounded-full font-medium">
+                  <i class="fas fa-star text-pink-400 mr-1"></i>
+                  ${
+                    anime.averageScore
+                      ? (anime.averageScore / 10).toFixed(1)
+                      : "N/A"
+                  }
+                </span>
+                <span class="bg-slate-700 text-white text-sm px-3 py-1 rounded-full font-medium">
+                  ${anime.format || "TV"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `
+    )
+    .join("");
+
+  elements.count.textContent = `${anime.length} ${
+    anime.length === 1 ? "result" : "results"
+  }`;
+  elements.results.classList.remove("hidden");
+
+  // Add click handlers
   document.querySelectorAll(".anime-card").forEach((card, i) => {
-    card.addEventListener("click", () => showModal(anime[i]));
+    card.addEventListener("click", () => showAnimeDetails(anime[i]));
   });
 }
 
-// Create HTML for single anime card
-function createCard(anime) {
+// Show anime details in modal
+function showAnimeDetails(anime) {
   const title = anime.title.english || anime.title.romaji || "Untitled";
-  const score = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : "N/A";
-  const img = anime.coverImage?.extraLarge || anime.coverImage?.large || DEFAULT_IMG;
-  
-  return `
-    <div class="anime-card bg-gray-800 rounded-lg overflow-hidden cursor-pointer">
-      <div class="relative h-64 group">
-        <img src="${img}" alt="${title}" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-80"></div>
-        <div class="absolute bottom-0 left-0 p-3 w-full">
-          <h3 class="text-white font-medium text-sm line-clamp-2">${title}</h3>
-          <div class="flex items-center mt-2">
-            <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded mr-2">
-              <i class="fas fa-star mr-1 text-yellow-400"></i> ${score}
-            </span>
-            <span class="bg-gray-700 text-white text-xs px-2 py-1 rounded">
-              ${anime.format || "TV"}
-            </span>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
+
+  elements.modalImg.src =
+    anime.coverImage?.extraLarge || anime.coverImage?.large || DEFAULT_IMG;
+  elements.modalImg.alt = `${title} Cover Image`;
+  elements.modalTitle.textContent = title;
+  elements.modalScore.textContent = anime.averageScore
+    ? (anime.averageScore / 10).toFixed(1)
+    : "N/A";
+  elements.modalFormat.textContent = anime.format || "TV";
+  elements.modalStatus.textContent = anime.status || "Unknown";
+  elements.modalDesc.textContent = anime.description
+    ? anime.description.replace(/<\/?[^>]+(>|$)/g, "")
+    : "No synopsis available.";
+
+  elements.modalGenres.innerHTML = anime.genres?.length
+    ? anime.genres
+        .map(
+          (genre) =>
+            `<span class="bg-slate-700 px-3 py-1 rounded-full text-sm text-slate-300 font-medium">${genre}</span>`
+        )
+        .join("")
+    : '<span class="bg-slate-700 px-3 py-1 rounded-full text-sm text-slate-300 font-medium">No genres listed</span>';
+
+  elements.modal.classList.remove("hidden");
+  elements.modal.querySelector("div.relative").classList.add("scale-100");
+  document.body.style.overflow = "hidden";
 }
 
-// Show detailed anime info in modal
-function showModal(anime) {
-  const title = anime.title.english || anime.title.romaji || "Untitled";
-  const img = anime.coverImage?.extraLarge || anime.coverImage?.large || DEFAULT_IMG;
-  
-  // Fill modal with anime data
-  document.getElementById("modal-img").src = img;
-  document.getElementById("modal-title").textContent = title;
-  document.getElementById("modal-score").textContent = anime.averageScore ? (anime.averageScore / 10).toFixed(1) : "N/A";
-  document.getElementById("modal-format").textContent = anime.format || "TV";
-  document.getElementById("modal-status").textContent = anime.status || "Unknown";
-  document.getElementById("modal-desc").textContent = anime.description ? anime.description.replace(/<\/?[^>]+(>|$)/g, "") : "No synopsis available.";
-  
-  // Add genres
-  const genresEl = document.getElementById("modal-genres");
-  genresEl.innerHTML = anime.genres?.length
-    ? anime.genres.map(g => `<span class="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300 genre-tag">${g}</span>`).join("")
-    : '<span class="bg-gray-700 px-3 py-1 rounded-full text-xs text-gray-300">No genres listed</span>';
-  
-  // Show modal
-  el.modal.classList.remove("hidden");
+// Close modal
+function closeModal() {
+  elements.modal.classList.add("hidden");
+  document.body.style.overflow = "auto";
 }
 
-// Show empty state message
-function showEmpty(message) {
-  el.empty.innerHTML = `
-    <i class="fas fa-exclamation-circle text-5xl text-gray-500 mb-4"></i>
-    <p class="text-gray-400 text-lg">${message}</p>
-  `;
-  el.empty.classList.remove("hidden");
+// Show empty state
+function showEmptyState(message) {
+  elements.empty.innerHTML = `
+        <i class="fas fa-exclamation-circle text-5xl text-slate-500 mb-4"></i>
+        <p class="text-slate-400 text-lg">${message}</p>
+      `;
+  elements.empty.classList.remove("hidden");
 }
+
+// Initial state
+elements.empty.classList.remove("hidden");
