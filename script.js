@@ -127,7 +127,7 @@ function showResults(anime) {
               }</h3>
               <div class="flex items-center mt-3 gap-2">
                 <span class="bg-indigo-600 text-white text-sm px-3 py-1 rounded-full font-medium">
-                  <i class="fas fa-star text-pink-400 mr-1"></i>
+                  <i class="fas fa-star text-yellow-400 mr-1"></i>
                   ${
                     anime.averageScore
                       ? (anime.averageScore / 10).toFixed(1)
